@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "start": "node src/main"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": "18",
+    "npm": "9"
+  }
+}
