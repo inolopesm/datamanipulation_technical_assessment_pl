@@ -1,10 +1,11 @@
-const Express = require("express");
+import * as express from "express";
+import type { NextFunction, Request, Response } from "express";
 
-const app = Express();
+const app = express();
 
 app.all("*", (req, res) => res.send({ message: "route not found" }));
 
-app.use((err, req, res, next) =>
+app.use((err: Error, req: Request, res: Response, next: NextFunction) =>
   res.send({ message: "internal server error" })
 );
 
