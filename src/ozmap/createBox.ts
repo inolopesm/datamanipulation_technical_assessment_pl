@@ -34,8 +34,8 @@ interface Result {
   name: string;
   creatorData: { id: string; name: string; username: string };
   pole: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | null;
+  updatedAt: string | null;
   __v: number;
   id: string;
   lng: number;

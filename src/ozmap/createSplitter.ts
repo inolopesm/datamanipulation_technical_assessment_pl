@@ -1,11 +1,41 @@
 import * as configurations from "../configurations";
 
 interface Params {
-  [x: string]: unknown;
+  implanted: boolean;
+  isDrop: boolean;
+  parent: string;
+  project: string;
+  name: string;
+  splitterType: string;
+  ratio: { output: number; input: number; }
+  // ? can be more? document page not found
 }
 
 interface Result {
-  [x: string]: unknown;
+  total: number;
+  counter: number;
+  rows: Array<{
+    isBalanced: boolean;
+    orientation: string;
+    currentPower: Array<number | null>;
+    installPower: Array<number | null>;
+    label: string;
+    attenuation: Array<number | null>;
+    implanted: boolean | null;
+    isDrop: boolean;
+    kind: string;
+    parent: string;
+    project: string
+    name: string
+    splitterType: string
+    connectables: { input: string[]; output: string[] };
+    ratio: { output: number; input: number; };
+    createdAt: string | null;
+    updatedAt: string | null;
+    id: string;
+  }>;
+  start: number;
+  limit: number;
 }
 
 export default async function createSplitter(params: Params): Promise<Result> {

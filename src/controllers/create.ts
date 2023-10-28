@@ -105,7 +105,10 @@ export default async function create(
 
     const splitterSchema = zod.z
       .object({
-        Name: zod.z.string(),
+        Name: zod.z.string().refine(
+          (value) => boxValidation.data.some((box) => box.Name === value),
+          (value) => ({ message: `${value} must be a valid box name` })
+        ),
         Box: zod.z.string(),
         implanted: zod.z.enum(["Yes", "No"]),
         Inputs: zod.z.number(),
@@ -127,19 +130,21 @@ export default async function create(
       return;
     }
 
-    // * save boxes in mongodb
-
-    await mongo.client
-      .db()
-      .collection("boxes")
-      .insertMany(structuredClone(boxRows));
-
-    // * create boxes in ozmap database
+    // * create boxes in ozmap database + save in mongodb
 
     const boxes: Array<Awaited<ReturnType<typeof createOzmapBox>>> = [];
 
     for (const box of boxValidation.data) {
       const boxType = boxTypesMap[box.Type] as string; // validated
+
+      const document = await mongo.client.db().collection("boxes").findOne({
+        ...box,
+        Project: req.ozmapProjectId,
+      });
+
+      if (document !== null) {
+        continue; // already sended
+      }
 
       const result = await createOzmapBox({
         lat: box.Latitude,
@@ -152,31 +157,34 @@ export default async function create(
         name: box.Name,
       });
 
+      await mongo.client.db().collection("boxes").insertOne({
+        ...box,
+        Project: req.ozmapProjectId,
+        ozmap: result,
+      });
+
       boxes.push(result);
     }
 
-    // * save splitters in mongodb
-
-    await mongo.client
-      .db()
-      .collection("splitters")
-      .insertMany(structuredClone(splitterRows));
-
-    // * create splitters on ozmap database
+    // * create splitters on ozmap database + save in mongodb
 
     for (const splitter of splitterValidation.data) {
-      const splitterType = splitterTypesMap[splitter.Type] as string;
+      const splitterType = splitterTypesMap[splitter.Type] as string; // validated
 
-      let splitterParent: string | undefined = undefined;
+      const { id: splitterParent } = boxes.find(
+        (box) => box.name === splitter.Box
+      ) as Awaited<ReturnType<typeof createOzmapBox>>; // validated
 
-      for (const box of boxes) {
-        if (splitter.Box === box.name) {
-          splitterParent = box.id;
-          break;
-        }
+      const document = await mongo.client.db().collection("splitters").findOne({
+        ...splitter,
+        Project: req.ozmapProjectId,
+      });
+
+      if (document !== null) {
+        continue; // already sended
       }
 
-      await createOzmapSplitter({
+      const result = await createOzmapSplitter({
         name: splitter.Name,
         splitterType: splitterType,
         parent: splitterParent,
@@ -184,6 +192,12 @@ export default async function create(
         project: req.ozmapProjectId,
         implanted: splitter.implanted === "Yes",
         isDrop: splitter["Allows client connection"] === "Yes"
+      });
+
+      await mongo.client.db().collection("splitters").insertOne({
+        ...splitter,
+        Project: req.ozmapProjectId,
+        ozmap: result,
       });
     }
 
