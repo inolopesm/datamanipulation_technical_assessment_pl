@@ -1,6 +1,6 @@
-import * as configurations from "./configurations";
+import * as configurations from "../configurations";
 
-export async function findProjects(): Promise<{
+interface Result {
   total: number;
   count: number;
   rows: Array<{
@@ -31,7 +31,9 @@ export async function findProjects(): Promise<{
   }>;
   start: number;
   limit: number;
-}> {
+}
+
+export default async function findProjects(): Promise<Result> {
   const response = await fetch(
     `${configurations.OZMAP_API_BASE_URL}/projects`,
     {
@@ -41,14 +43,6 @@ export async function findProjects(): Promise<{
       },
     }
   );
-
-  if (response.status === 422) {
-    throw new Error("Unprocessable entity");
-  }
-
-  if (response.status === 401) {
-    throw new Error("Unauthorized");
-  }
 
   if (response.status !== 200) {
     throw new Error(`Request failed with status code ${response.status}`);

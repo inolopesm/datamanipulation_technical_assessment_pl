@@ -1,8 +1,9 @@
 import * as express from "express";
-import * as controllers from "./controllers";
+import createController from "./controllers/create";
+import findByCollectionController from "./controllers/findByCollection";
 import * as middlewares from "./middlewares";
 import * as mongo from "./mongo";
-import * as ozmap from "./ozmap";
+import findOzmapProjects from "./ozmap/findProjects";
 
 declare global {
   namespace Express {
@@ -18,7 +19,7 @@ async function bootstrap(): Promise<void> {
   await mongo.client.connect();
   console.log("mongodb connected");
 
-  const ozmapProjects = await ozmap.findProjects();
+  const ozmapProjects = await findOzmapProjects();
 
   if (ozmapProjects.total !== 1) {
     throw new Error("Unexpect have more than one ozmap project");
@@ -39,8 +40,8 @@ async function bootstrap(): Promise<void> {
     next();
   });
 
-  app.get("/", controllers.findByCollection);
-  app.post("/", middlewares.file, controllers.create);
+  app.get("/:collection", findByCollectionController);
+  app.post("/", middlewares.file, createController);
 
   app.all("*", middlewares.notFound);
   app.use(middlewares.error);
