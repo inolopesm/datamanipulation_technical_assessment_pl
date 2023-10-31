@@ -3,9 +3,16 @@ import * as xlsx from "xlsx";
 import * as zod from "zod";
 import * as mongo from "../mongo";
 import createOzmapBox from "../ozmap/createBox";
+import createOzmapClient from "../ozmap/createClient";
+import createOzmapProperty from "../ozmap/createProperty";
 import createOzmapSplitter from "../ozmap/createSplitter";
 import findOzmapBoxTypes from "../ozmap/findBoxTypes";
 import findOzmapSplitterTypes from "../ozmap/findSplitterTypes";
+import generateRandomUser from "../randomuser/generate";
+import removeAccents from "../utils/removeAccents";
+
+const { format: formatList } = new Intl.ListFormat("en-US");
+
 
 export default async function create(
   req: Request,
@@ -45,15 +52,21 @@ export default async function create(
 
     // * convert boxes sheet to json
 
-    const boxSheet = workbook.Sheets["Boxes"] as xlsx.WorkSheet;
+    const boxSheet = workbook.Sheets["Boxes"] as xlsx.WorkSheet; // validated
     const boxData = xlsx.utils.sheet_to_json(boxSheet);
     const boxRows = boxData as Array<Record<string, unknown>>;
 
     // * convert splitters sheet to json
 
-    const splitterSheet = workbook.Sheets["Splitters"] as xlsx.WorkSheet;
+    const splitterSheet = workbook.Sheets["Splitters"] as xlsx.WorkSheet; // validated
     const splitterData = xlsx.utils.sheet_to_json(splitterSheet);
     const splitterRows = splitterData as Array<Record<string, unknown>>;
+
+    // * convert clients sheet to json
+
+    const clientSheet = workbook.Sheets["Clients"] as xlsx.WorkSheet; // validated
+    const clientData = xlsx.utils.sheet_to_json(clientSheet);
+    const clientRows = clientData as Array<Record<string, unknown>>;
 
     // * get box types
 
@@ -85,8 +98,7 @@ export default async function create(
 
     if (!boxValidation.success) {
       res.status(400);
-      const { format } = new Intl.ListFormat("en-US");
-      res.send({ message: format(boxValidation.error.format()._errors) });
+      res.send({ message: formatList(boxValidation.error.format()._errors) });
       return;
     }
 
@@ -105,11 +117,11 @@ export default async function create(
 
     const splitterSchema = zod.z
       .object({
-        Name: zod.z.string().refine(
+        Name: zod.z.string(),
+        Box: zod.z.string().refine(
           (value) => boxValidation.data.some((box) => box.Name === value),
           (value) => ({ message: `${value} must be a valid box name` })
         ),
-        Box: zod.z.string(),
         implanted: zod.z.enum(["Yes", "No"]),
         Inputs: zod.z.number(),
         Outputs: zod.z.number(),
@@ -125,8 +137,31 @@ export default async function create(
 
     if (!splitterValidation.success) {
       res.status(400);
-      const { format } = new Intl.ListFormat("en-US");
-      res.send({ message: format(splitterValidation.error.format()._errors) });
+      res.send({ message: formatList(splitterValidation.error.format()._errors) });
+      return;
+    }
+
+    // * clients json validation
+
+    const clientSchema = zod.z
+      .object({
+        Latitude: zod.z.string(),
+        Longitude: zod.z.string(),
+        Box: zod.z.string().refine(
+          (value) => boxValidation.data.some((box) => box.Name === value),
+          (value) => ({ message: `${value} must be a valid box name` })
+        ),
+        Status: zod.z.enum(["OK", "ERROR"]),
+        Auto_connect: zod.z.enum(["true"]),
+        Force: zod.z.enum(["true"]),
+      })
+      .array();
+
+    const clientValidation = clientSchema.safeParse(clientRows);
+
+    if (!clientValidation.success) {
+      res.status(400);
+      res.send({ message: formatList(clientValidation.error.format()._errors) });
       return;
     }
 
@@ -198,6 +233,62 @@ export default async function create(
         ...splitter,
         Project: req.ozmapProjectId,
         ozmap: result,
+      });
+    }
+
+    // * create clients/properties on ozmap database + save in mongodb
+
+    const { results: randomUsers } = await generateRandomUser({
+      nat: "BR",
+      results: clientValidation.data.length,
+    });
+
+    for (let i = 0; i < clientValidation.data.length; i++) {
+      const randomUser = randomUsers[i] as typeof randomUsers[number];
+      const client = clientValidation.data[i] as typeof clientValidation.data[number];
+
+      const document = await mongo.client.db().collection("clients").findOne({
+        ...client,
+        Project: req.ozmapProjectId,
+      });
+
+      if (document !== null) {
+        continue; // already sended
+      }
+
+      const ozmapClient = await createOzmapClient({
+        code: [randomUser.name.first, randomUser.name.last]
+          .map((name) => removeAccents(name).toLocaleLowerCase("pt-BR").replace(/ /g, "."))
+          .join("."),
+        onu: null,
+        status: Object.freeze({ OK: 0, ERROR: 1 })[client.Status],
+      });
+
+      const box = boxes.find(
+        (box) => box.name === client.Box
+      ) as Awaited<ReturnType<typeof createOzmapBox>>; // validated
+
+      const ozmapProperty = await createOzmapProperty({
+        address: [
+          randomUser.location.street.name,
+          randomUser.location.street.number,
+          randomUser.location.postcode,
+          randomUser.location.city,
+          randomUser.location.state,
+          randomUser.location.country,
+        ].join(" "),
+        project: req.ozmapProjectId,
+        box: box.id,
+        coords: [Number(client.Latitude), Number(client.Longitude)],
+        client: ozmapClient.id,
+        auto_connect: client.Auto_connect === "true",
+        force: client.Force === "true",
+      });
+
+      await mongo.client.db().collection("clients").insertOne({
+        ...client,
+        Project: req.ozmapProjectId,
+        ozmap: { client: ozmapClient, property: ozmapProperty },
       });
     }
 
