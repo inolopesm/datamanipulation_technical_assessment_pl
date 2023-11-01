@@ -200,17 +200,18 @@ export default async function create(
       });
 
       if (document !== null) {
+        boxes.push(document.ozmap);
         continue; // already sended
       }
 
       const result = await createOzmapBox({
-        lat: box.Latitude,
-        lng: box.Longitude,
+        lat: +box.Latitude,
+        lng: +box.Longitude,
         implanted: true,
         project: req.ozmapProjectId,
         boxType: boxType,
         hierarchyLevel: box.Level,
-        coords: [null, null],
+        coords: [+box.Latitude, +box.Longitude],
         name: box.Name,
       });
 

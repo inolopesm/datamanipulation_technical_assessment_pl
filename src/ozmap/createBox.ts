@@ -1,3 +1,4 @@
+import * as axios from "../axios";
 import * as configurations from "../configurations";
 
 interface Params {
@@ -9,10 +10,10 @@ interface Params {
   template?: string | undefined;
   boxType: string;
   name?: string | undefined;
-  coords: [number | null, number | null];
+  coords: [number, number];
   observation?: string | undefined;
-  lat?: string | null | undefined;
-  lng?: string | null | undefined;
+  lat?: number | null | undefined;
+  lng?: number | null | undefined;
   pole?: string | undefined;
   tags?: string[] | undefined;
 }
@@ -43,19 +44,15 @@ interface Result {
 }
 
 export default async function createBox(params: Params): Promise<Result> {
-  const response = await fetch(`${configurations.OZMAP_API_BASE_URL}/boxes`, {
+  const response = await axios.instance.request<Result>({
     method: "POST",
-    body: JSON.stringify(params),
+    url: `${configurations.OZMAP_API_BASE_URL}/boxes`,
+    data: params,
     headers: {
       authorization: configurations.OZMAP_API_KEY,
       accept: "application/json",
-      "content-type": "application/json",
     },
   });
 
-  if (response.status !== 201) {
-    throw new Error(`Request failed with status code ${response.status}`);
-  }
-
-  return await response.json();
+  return response.data;
 }
