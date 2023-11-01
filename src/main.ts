@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import * as express from "express";
 import createController from "./controllers/create";
 import findByCollectionController from "./controllers/findByCollection";
@@ -39,6 +41,12 @@ async function bootstrap(): Promise<void> {
     req.ozmapProjectId = ozmapProject.id;
     next();
   });
+
+  app.get("/", (req, res) =>
+    fs
+      .createReadStream(path.resolve(__dirname, "..", "public", "index.html"))
+      .pipe(res)
+  );
 
   app.get("/:collection", findByCollectionController);
   app.post("/", middlewares.file, createController);

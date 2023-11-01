@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Desafio OZmap</title>
+  </head>
+  <body>
+    <h1>Desafio OZmap</h1>
+    <form>
+      <p>
+        <label for="file">Arquivo XLS</label>
+        <br />
+        <input
+          type="file"
+          id="file"
+          name="file"
+          accept="application/vnd.ms-excel"
+          required
+        />
+      </p>
+      <p>
+        <button type="submit">Enviar</button>
+      </p>
+      <output></output>
+    </form>
+    <script>
+      window.addEventListener("DOMContentLoaded", () => {
+        const form$ = document.querySelector("form");
+        const output$ = document.querySelector("output");
+
+        form$.addEventListener("submit", async function (event) {
+          event.preventDefault();
+          const body = new FormData(event.target);
+          const response = await fetch("/", { method: "POST", body });
+          const data = await response.json();
+          output$.innerText = response.ok ? "Enviado c/ sucesso" : data.message;
+        });
+      });
+    </script>
+  </body>
+</html>
