@@ -1,3 +1,4 @@
+import * as axios from "../axios";
 import * as configurations from "../configurations";
 
 interface Result {
@@ -27,19 +28,13 @@ interface Result {
 }
 
 export default async function findBoxTypes(): Promise<Result> {
-  const response = await fetch(
-    `${configurations.OZMAP_API_BASE_URL}/box-types`,
-    {
-      headers: {
-        authorization: configurations.OZMAP_API_KEY,
-        accept: "application/json",
-      },
-    }
-  );
+  const response = await axios.instance.request<Result>({
+    url: `${configurations.OZMAP_API_BASE_URL}/box-types`,
+    headers: {
+      authorization: configurations.OZMAP_API_KEY,
+      accept: "application/json",
+    },
+  });
 
-  if (response.status !== 200) {
-    throw new Error(`Request failed with status code ${response.status}`);
-  }
-
-  return await response.json();
+  return response.data;
 }
