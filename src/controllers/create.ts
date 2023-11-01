@@ -1,18 +1,16 @@
 import type { NextFunction, Request, Response } from "express";
 import * as xlsx from "xlsx";
 import * as zod from "zod";
+import * as zodValidationError from "zod-validation-error";
 import * as mongo from "../mongo";
+import generateRandomUser from "../randomuser/generate";
 import createOzmapBox from "../ozmap/createBox";
 import createOzmapClient from "../ozmap/createClient";
 import createOzmapProperty from "../ozmap/createProperty";
 import createOzmapSplitter from "../ozmap/createSplitter";
 import findOzmapBoxTypes from "../ozmap/findBoxTypes";
 import findOzmapSplitterTypes from "../ozmap/findSplitterTypes";
-import generateRandomUser from "../randomuser/generate";
 import removeAccents from "../utils/removeAccents";
-
-const { format: formatList } = new Intl.ListFormat("en-US");
-
 
 export default async function create(
   req: Request,
@@ -97,9 +95,25 @@ export default async function create(
     const boxValidation = boxSchema.safeParse(boxRows);
 
     if (!boxValidation.success) {
+      const error = zodValidationError.fromZodError(boxValidation.error, {
+        prefix: 'Validation Error on "Boxes" Sheet'
+      });
+
       res.status(400);
-      res.send({ message: formatList(boxValidation.error.format()._errors) });
+      res.send({ message: error.message });
       return;
+    }
+
+    const boxNamesSet = new Set<string>();
+
+    for (const box of boxValidation.data) {
+      if (boxNamesSet.has(box.Name)) {
+        res.status(400);
+        res.send({ message: "Box name must be unique" });
+        return;
+      }
+
+      boxNamesSet.add(box.Name);
     }
 
     // * get splitter types
@@ -136,8 +150,12 @@ export default async function create(
     const splitterValidation = splitterSchema.safeParse(splitterRows);
 
     if (!splitterValidation.success) {
+      const error = zodValidationError.fromZodError(splitterValidation.error, {
+        prefix: 'Validation Error on "Splitters" Sheet'
+      });
+
       res.status(400);
-      res.send({ message: formatList(splitterValidation.error.format()._errors) });
+      res.send({ message: error.message });
       return;
     }
 
@@ -160,8 +178,12 @@ export default async function create(
     const clientValidation = clientSchema.safeParse(clientRows);
 
     if (!clientValidation.success) {
+      const error = zodValidationError.fromZodError(clientValidation.error, {
+        prefix: 'Validation Error on "Clients" Sheet'
+      });
+
       res.status(400);
-      res.send({ message: formatList(clientValidation.error.format()._errors) });
+      res.send({ message: error.message });
       return;
     }
 
