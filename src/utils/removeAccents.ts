@@ -11,5 +11,5 @@ export default function removeAccents(value: string): string {
   return Array
     .from(value)
     .map((char) => char.replace(/[^\u0000-\u007E]/g, (c) => accents[c] || c))
-    .join();
+    .join("");
 }
