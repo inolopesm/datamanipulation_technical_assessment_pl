@@ -38,6 +38,8 @@ async function bootstrap(): Promise<void> {
 
   const app = express();
 
+  app.use(middlewares.logger);
+
   app.use((req, res, next) => {
     req.ozmapProjectId = ozmapProject.id;
     next();

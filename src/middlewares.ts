@@ -4,6 +4,20 @@ import * as pino from "./pino";
 
 export const file = multer({ storage: multer.memoryStorage() }).single("file");
 
+export function logger(req: Request, res: Response, next: NextFunction): void {
+  const { method, url } = req;
+  const start = Date.now();
+
+  res.on("finish", () => {
+    const { statusCode: status } = res;
+    const contentLength = res.getHeader("content-length");
+    const responseTime = Date.now() - start;
+    pino.logger.info({ method, url, status, contentLength, responseTime });
+  });
+
+  next();
+}
+
 export function notFound(req: Request, res: Response): void {
   res.status(404);
   res.send({ message: "route not found" });
