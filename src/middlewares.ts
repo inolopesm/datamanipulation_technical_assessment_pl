@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import * as multer from "multer";
+import * as pino from "./pino";
 
 export const file = multer({ storage: multer.memoryStorage() }).single("file");
 
@@ -14,7 +15,8 @@ export function error(
   res: Response,
   next: NextFunction
 ): void {
-  console.error(err);
+  const { name, message, stack, cause } = err;
+  pino.logger.error({ name, message, stack, cause });
   res.status(500);
   res.send({ message: "internal server error" });
 }

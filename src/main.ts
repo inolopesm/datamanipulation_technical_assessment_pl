@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as express from "express";
 import createController from "./controllers/create";
 import findByCollectionController from "./controllers/findByCollection";
+import * as pino from "./pino";
 import * as middlewares from "./middlewares";
 import * as mongo from "./mongo";
 import findOzmapProjects from "./ozmap/findProjects";
@@ -19,7 +20,7 @@ let server: ReturnType<ReturnType<typeof express>["listen"]>;
 
 async function bootstrap(): Promise<void> {
   await mongo.client.connect();
-  console.log("mongodb connected");
+  pino.logger.info("mongodb connected");
 
   const ozmapProjects = await findOzmapProjects();
 
@@ -33,7 +34,7 @@ async function bootstrap(): Promise<void> {
     throw new Error("First returned ozmap project is undefined");
   }
 
-  console.log("ozmap project id", ozmapProject.id)
+  pino.logger.info("ozmap project id", ozmapProject.id)
 
   const app = express();
 
@@ -56,7 +57,7 @@ async function bootstrap(): Promise<void> {
 
 
   server = app.listen(3000, "0.0.0.0", () =>
-    console.log(`server listening on http://0.0.0.0:3000`)
+    pino.logger.info(`server listening on http://0.0.0.0:3000`)
   );
 }
 
@@ -64,15 +65,15 @@ bootstrap();
 
 ["SIGINT", "SIGTERM"].forEach((signal) =>
   process.on(signal, () => {
-    console.log(`\n${signal} received`);
+    pino.logger.info(`\n${signal} received`);
 
-    console.log(
+    pino.logger.info(
       "stopping server from accepting new connections but keeping existing connections..."
     );
 
     server.close((err) => {
       if (err) throw err;
-      console.log("server closed");
+      pino.logger.info("server closed");
       process.exit(0);
     });
   })
